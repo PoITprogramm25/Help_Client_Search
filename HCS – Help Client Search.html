@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HCS – Help Client Search</title>
+<style>
+:root{--bg:#fff;--fg:#000;--blue:#1e6fe8;--grid:#000;--muted:#555;--pop:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000;--fg:#fff;--grid:#fff;--muted:#aaa;--pop:#000}}
+:root[data-theme="dark"]{--bg:#000;--fg:#fff;--grid:#fff;--muted:#aaa;--pop:#000}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+.top{display:grid;grid-template-columns:1fr 1fr;padding:16px}
+.left{display:flex;gap:12px;align-items:flex-start;padding-right:50px}
+.right{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;padding-left:20px}
+button,input{font:inherit;color:var(--fg);background:var(--bg)}
+.btn{border:2px solid var(--blue);border-radius:5px;padding:9px 14px;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.on{background:var(--blue);color:#fff}
+.avatar{width:42px;height:42px;flex:none;border-radius:50%;padding:0;overflow:hidden;display:grid;place-items:center}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.search{position:relative;flex:1;min-width:0}
+.search input{width:100%;border:2px solid var(--blue);border-radius:5px;padding:9px 12px}
+.pop{position:absolute;z-index:20;top:100%;margin-top:4px;min-width:220px;background:var(--pop);border:2px solid var(--blue);border-radius:5px;max-height:280px;overflow:auto}
+.search .pop{left:0;right:0}
+.pop div,.pop label{display:flex;gap:8px;align-items:center;padding:9px 12px;cursor:pointer}
+.pop div:hover,.pop label:hover{background:rgba(30,111,232,.18)}
+.pop .sel{font-weight:600}
+.pop .hint{color:var(--muted);cursor:default;font-size:13px}
+.pop .hint:hover{background:none}
+.param{position:relative}
+main{padding:8px 16px 90px}
+.status{display:flex;justify-content:space-between;color:var(--muted);margin:6px 0 8px;font-size:13px}
+.bar{height:4px;border:1px solid var(--blue);border-radius:5px;margin-bottom:10px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--blue)}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{border:1px solid var(--grid);padding:8px 10px;text-align:left}
+.empty td{text-align:center;color:var(--muted);padding:40px}
+.foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.foot .mid{display:flex;gap:10px;justify-content:center}
+.foot .btn.l{justify-self:start;min-width:0;font-weight:400;display:flex;gap:6px;align-items:center}
+.foot .btn{min-width:160px;font-weight:600}
+.panel{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:50;align-items:flex-start;justify-content:flex-start;padding:70px 16px}
+.panel.open{display:flex}
+.card{background:var(--bg);border:2px solid var(--blue);border-radius:5px;padding:18px;width:min(360px,100%);display:grid;gap:14px}
+.card h3{margin:0}
+.row{display:grid;gap:6px}
+.row input[type=text]{border:2px solid var(--blue);border-radius:5px;padding:8px 10px}
+.badge{display:inline-block;padding:3px 10px;border:2px solid var(--blue);border-radius:5px;font-size:13px}
+.badge.active{background:var(--blue);color:#fff}
+.photo{display:flex}
+.upl{flex:1;display:flex;gap:12px;align-items:center;cursor:pointer;border:2px dashed var(--blue);border-radius:5px;padding:10px;transition:background .15s}
+.upl:hover,.upl:focus-within{background:rgba(30,111,232,.15);border-style:solid}
+.ring{width:54px;height:54px;flex:none;border-radius:50%;border:2px solid var(--blue);display:grid;place-items:center;overflow:hidden;color:var(--blue);transition:transform .15s}
+.upl:hover .ring{transform:scale(1.08)}
+.ring img{width:100%;height:100%;object-fit:cover}
+.upl small{display:block;color:var(--muted)}
+.demo{font-size:12px;color:var(--muted);margin:0 0 6px}
+#hpanel{align-items:flex-end;padding-bottom:80px}
+#hList{display:grid;max-height:50vh;overflow:auto}
+.hi{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--muted)}
+.hi small{display:block;color:var(--muted)}
+@media(max-width:520px){.foot{grid-template-columns:auto 1fr}.foot .mid{justify-self:end}.foot .mid .btn{min-width:120px}}
+@media(max-width:700px){.top{grid-template-columns:1fr;gap:10px}.left{padding-right:0}.right{padding-left:0}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="left">
+    <button class="btn avatar" id="userBtn" aria-label="Настройки пользователя"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></button>
+    <div class="search">
+      <input id="q" type="text" placeholder="Поиск: например, создание сайта для кафе…" autocomplete="off">
+      <div class="pop" id="sug" hidden></div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="param"><button class="btn" id="bField">Сфера/Отрасль</button><div class="pop" id="pField" hidden></div></div>
+    <div class="param"><button class="btn" id="bSvc">Запрос услуги</button><div class="pop" id="pSvc" hidden></div></div>
+    <div class="param"><button class="btn" id="bPlat">Платформа</button><div class="pop" id="pPlat" hidden></div></div>
+    <div class="param"><button class="btn" id="bDur">Длительность поиска</button><div class="pop" id="pDur" hidden></div></div>
+  </div>
+</div>
+
+<main>
+  <p class="demo">Демо-режим: агент имитируется, все контакты ниже сгенерированы и не являются реальными.</p>
+  <div class="status"><span id="stTxt">Задайте параметры, чтобы начать.</span><span id="stCnt">0 клиентов</span></div>
+  <div class="bar"><i id="prog"></i></div>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>№ клиента</th><th>Имя/Компания</th><th>Телефон</th><th>Email</th><th>Сфера/Отрасль</th><th>Платформа</th></tr></thead>
+      <tbody id="rows"><tr class="empty"><td colspan="6">Клиентов пока нет. Нажмите «Старт».</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<div class="foot"><button class="btn l" id="histBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>История</button><div class="mid"><button class="btn" id="start" disabled>Старт</button><button class="btn" id="stop" hidden>Стоп</button></div><span></span></div>
+
+<div class="panel" id="panel">
+  <div class="card" role="dialog" aria-label="Настройки пользователя">
+    <h3>Настройки пользователя</h3>
+    <div class="row"><label for="nm">ФИО</label><input type="text" id="nm" placeholder="Ваше полное имя"></div>
+    <div class="row"><span>Фото профиля</span><div class="photo"><label class="upl" for="file"><span class="ring"><img id="ph" alt="" hidden><svg id="cam" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><span><b id="utT">Загрузить фото</b><small>Нажмите, чтобы выбрать</small></span></label><input type="file" id="file" accept="image/*" hidden></div></div>
+    <div class="row"><span>Подписка</span><span><span class="badge" id="sub">Не активна</span></span></div>
+    <div class="row"><span>Тема</span><button class="btn" id="theme">Тёмная тема</button></div>
+    <button class="btn" id="close">Закрыть</button>
+  </div>
+</div>
+
+<div class="panel" id="hpanel">
+  <div class="card" role="dialog" aria-label="История">
+    <h3>История настроек</h3>
+    <div id="hList"></div>
+    <button class="btn" id="hClear">Очистить историю</button>
+    <button class="btn" id="hClose">Закрыть</button>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const DATA={
+"IT и ПО":["Разработка приложений","Создание сайтов","Исправление багов","Дизайн в Figma","Интеграция API"],
+"Розница и e-commerce":["Создание интернет-магазина","Создание сайтов","Разработка приложений","UI/UX-дизайн","Исправление багов"],
+"Фото и медиа":["Создание сайтов","Дизайн в Figma","Приложение для записи","Сайт-портфолио","Исправление багов"],
+"Образование":["Обучающая платформа","Разработка приложений","Создание сайтов","Дизайн в Figma","Исправление багов"],
+"Здравоохранение":["Портал пациента","Разработка приложений","Создание сайтов","UI/UX-дизайн","Исправление багов"],
+"Недвижимость":["Сайт с объявлениями","Разработка приложений","Интеграция CRM","Дизайн в Figma","Исправление багов"],
+"Гостеприимство":["Сайт бронирования","Разработка приложений","Сайт-меню с QR","Дизайн в Figma","Исправление багов"],
+"Финансы":["Разработка дашбордов","Разработка приложений","Создание сайтов","UI/UX-дизайн","Исправление багов"],
+"Логистика":["Приложение для отслеживания","Создание сайтов","Разработка приложений","Админ-панель","Исправление багов"]};
+const PLAT=["Kwork","FL.ru","Freelance.ru","Хабр Фриланс","HeadHunter","Telegram-каналы","VK","LinkedIn","Upwork"];
+const NAMES=["Nordlight","Volna","Bright Studio","Kedr","Atlas Group","Zorya","Lumen","Orion","Parus","Tandem","Sever","Alfa Craft","Mosaic","Vector","Cedar & Co"];
+const S={field:null,svc:[],plat:[],dur:null,timer:null};
+const pops=["pField","pSvc","pPlat","pDur","sug"];
+function closeAll(except){pops.forEach(p=>{if(p!==except)$(p).hidden=true})}
+function toggle(id){const el=$(id);const h=el.hidden;closeAll(id);el.hidden=!h}
+document.addEventListener("click",e=>{if(!e.target.closest(".param")&&!e.target.closest(".search"))closeAll()});
+
+// Field
+$("pField").innerHTML=Object.keys(DATA).map(f=>`<div data-f="${f}">${f}</div>`).join("");
+$("bField").onclick=()=>toggle("pField");
+$("pField").onclick=e=>{const f=e.target.dataset.f;if(!f)return;S.field=f;S.svc=[];$("bField").textContent=f;$("bField").classList.add("on");renderSvc();upd();closeAll()};
+// Services
+function renderSvc(){
+  const p=$("pSvc");
+  if(!S.field){p.innerHTML='<div class="hint">Сначала выберите сферу</div>';}
+  else p.innerHTML='<div class="hint">Не более 3 вариантов</div>'+DATA[S.field].map(s=>`<label><input type="checkbox" value="${s}" ${S.svc.includes(s)?"checked":""} ${!S.svc.includes(s)&&S.svc.length>=3?"disabled":""}> ${s}</label>`).join("");
+  const b=$("bSvc");b.textContent=S.svc.length?`Запрос услуги (${S.svc.length})`:"Запрос услуги";b.classList.toggle("on",S.svc.length>0);
+}
+$("bSvc").onclick=()=>toggle("pSvc");
+$("pSvc").onchange=e=>{const v=e.target.value;if(e.target.checked){if(S.svc.length<3)S.svc.push(v)}else S.svc=S.svc.filter(x=>x!==v);renderSvc();upd()};
+renderSvc();
+// Duration
+const DUR=[["30 минут",30,10],["1 час",60,18],["3 часа",180,34]];
+$("pDur").innerHTML='<div class="hint">Период поиска</div>'+DUR.map((d,i)=>`<div data-d="${i}">${d[0]}</div>`).join("");
+$("bDur").onclick=()=>toggle("pDur");
+$("pDur").onclick=e=>{const i=e.target.dataset.d;if(i===undefined)return;S.dur=DUR[i];S.durI=+i;$("bDur").textContent=DUR[i][0];$("bDur").classList.add("on");upd();closeAll()};
+function renderPlat(){
+  $("pPlat").innerHTML='<div class="hint">Не более 3 площадок</div>'+PLAT.map(s=>`<label><input type="checkbox" value="${s}" ${S.plat.includes(s)?"checked":""} ${!S.plat.includes(s)&&S.plat.length>=3?"disabled":""}> ${s}</label>`).join("");
+  const b=$("bPlat");b.textContent=S.plat.length?`Платформа (${S.plat.length})`:"Платформа";b.classList.toggle("on",S.plat.length>0);
+}
+$("bPlat").onclick=()=>toggle("pPlat");
+$("pPlat").onchange=e=>{const v=e.target.value;if(e.target.checked){if(S.plat.length<3)S.plat.push(v)}else S.plat=S.plat.filter(x=>x!==v);renderPlat();upd()};
+renderPlat();
+function upd(){$("start").disabled=!(S.field&&S.svc.length&&S.plat.length&&S.dur)||!!S.timer}
+
+// Search suggestions
+function applyPreset(f,s){
+  S.field=f;S.svc=[s];S.dur=DUR[0];S.durI=0;if(!S.plat.length)S.plat=[PLAT[0]];
+  $("bField").textContent=f;$("bField").classList.add("on");
+  $("bDur").textContent=S.dur[0];$("bDur").classList.add("on");
+  renderSvc();renderPlat();upd();
+}
+let Q=[];try{Q=JSON.parse(localStorage.getItem("hcs-q")||"[]")}catch(e){}
+function saveQ(){const v=$("q").value.trim();if(v.length<2)return;Q=[v,...Q.filter(x=>x!==v)].slice(0,20);try{localStorage.setItem("hcs-q",JSON.stringify(Q))}catch(e){}$("sug").hidden=true}
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")saveQ()});
+$("q").addEventListener("input",()=>{
+  const v=$("q").value.trim().toLowerCase();
+  if(v.length<2){$("sug").hidden=true;return}
+  const pool=[...new Set([...Q,...Object.keys(DATA),...Object.values(DATA).flat()])];
+  const list=pool.filter(s=>{const l=s.toLowerCase();return l.includes(v)&&l!==v}).slice(0,6);
+  const els=list.map(s=>{const d=document.createElement("div");d.textContent=s;return d});
+  if(!els.length){const d=document.createElement("div");d.className="hint";d.textContent="Нет совпадений";els.push(d)}
+  $("sug").replaceChildren(...els);$("sug").hidden=false;
+});
+$("sug").onclick=e=>{if(e.target.tagName==="DIV"&&!e.target.classList.contains("hint")){const t=e.target.textContent;$("q").value=t;$("sug").hidden=true;
+  if(!S.timer){let f=null,s=null;
+    if(DATA[t]){f=t;s=DATA[t][0]}
+    else for(const k in DATA){if(DATA[k].includes(t)){f=k;s=t;break}}
+    if(f)applyPreset(f,s)}
+}};
+
+// Agent simulation
+const rows=$("rows");let n=0;
+function ru(k){const a=k%10,b=k%100;return b>10&&b<20?"клиентов":a===1?"клиент":a>1&&a<5?"клиента":"клиентов"}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function addRow(){
+  n++;
+  const nm=pick(NAMES)+(Math.random()>.5?" LLC":"");
+  const slug=nm.toLowerCase().replace(/[^a-z]/g,"");
+  const ph=`+7 (900) 555-01-${String(Math.floor(Math.random()*99)).padStart(2,"0")}`;
+  if(n===1)rows.innerHTML="";
+  const tr=document.createElement("tr");
+  [n,nm,ph,`info@${slug}.example`,S.field,pick(S.plat)].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});
+  rows.appendChild(tr);$("stCnt").textContent=n+" "+ru(n);
+}
+function finish(msg){clearInterval(S.timer);S.timer=null;$("stop").hidden=true;$("start").hidden=false;$("stTxt").textContent=msg;upd()}
+$("start").onclick=()=>{
+  saveHist();n=0;rows.innerHTML='<tr class="empty"><td colspan="6">Агент ищет клиентов…</td></tr>';$("stCnt").textContent="0 клиентов";
+  const total=S.dur[2];let i=0;
+  $("start").hidden=true;$("stop").hidden=false;
+  S.timer=setInterval(()=>{
+    i++;addRow();$("prog").style.width=(i/total*100)+"%";
+    $("stTxt").textContent=`Поиск: ${S.svc.join(", ")} · ${S.plat.join(", ")} (${S.dur[0]}, демо-скорость)`;
+    if(i>=total)finish("Поиск завершён.");
+  },1100);
+};
+$("stop").onclick=()=>finish("Поиск остановлен.");
+
+// History
+let H=[];try{H=JSON.parse(localStorage.getItem("hcs-hist")||"[]")}catch(e){}
+function saveHist(){
+  saveQ();const k=S.field+"|"+S.svc.join(",")+"|"+S.plat.join(",")+"|"+S.durI;
+  H=H.filter(h=>h.k!==k);H.unshift({k,field:S.field,svc:[...S.svc],plat:[...S.plat],durI:S.durI,t:Date.now()});H=H.slice(0,15);
+  try{localStorage.setItem("hcs-hist",JSON.stringify(H))}catch(e){}
+}
+function renderHist(){
+  const b=$("hList");
+  if(!H.length){b.innerHTML='<p class="demo">История пуста. Запустите поиск, и настройки сохранятся здесь.</p>';return}
+  b.innerHTML=H.map((h,i)=>`<div class="hi"><div><b>${h.field}</b><small>${h.svc.join(", ")} · ${(h.plat||[]).join(", ")} · ${DUR[h.durI][0]} · ${new Date(h.t).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small></div><button class="btn" data-i="${i}">Применить</button></div>`).join("");
+}
+$("hList").onclick=e=>{
+  const i=e.target.dataset.i;if(i===undefined||S.timer)return;
+  const h=H[i];S.field=h.field;S.svc=[...h.svc];S.plat=[...(h.plat||[PLAT[0]])];S.dur=DUR[h.durI];S.durI=h.durI;
+  $("bField").textContent=h.field;$("bField").classList.add("on");
+  $("bDur").textContent=S.dur[0];$("bDur").classList.add("on");
+  renderSvc();renderPlat();upd();$("hpanel").classList.remove("open");
+};
+$("histBtn").onclick=()=>{renderHist();$("hpanel").classList.add("open")};
+$("hClose").onclick=()=>$("hpanel").classList.remove("open");
+$("hClear").onclick=()=>{H=[];try{localStorage.removeItem("hcs-hist")}catch(e){};renderHist()};
+$("hpanel").onclick=e=>{if(e.target===$("hpanel"))$("hpanel").classList.remove("open")};
+
+// Settings
+const root=document.documentElement;
+function setTheme(t){root.setAttribute("data-theme",t);$("theme").textContent=t==="dark"?"Светлая тема":"Тёмная тема";try{localStorage.setItem("hcs-theme",t)}catch(e){}}
+let t0=null;try{t0=localStorage.getItem("hcs-theme")}catch(e){}
+setTheme(t0||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));
+$("theme").onclick=()=>setTheme(root.getAttribute("data-theme")==="dark"?"light":"dark");
+$("userBtn").onclick=()=>$("panel").classList.add("open");
+$("close").onclick=()=>$("panel").classList.remove("open");
+$("panel").onclick=e=>{if(e.target===$("panel"))$("panel").classList.remove("open")};
+try{$("nm").value=localStorage.getItem("hcs-name")||""}catch(e){}
+$("nm").oninput=()=>{try{localStorage.setItem("hcs-name",$("nm").value)}catch(e){}};
+$("file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$("ph").src=r.result;$("ph").hidden=false;$("cam").style.display="none";$("utT").textContent="Изменить фото";$("userBtn").innerHTML=`<img src="${r.result}" alt="">`};r.readAsDataURL(f)};
+$("sub").textContent="Не активна";
+</script>
+</body>
+</html>
